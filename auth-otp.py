@@ -29,7 +29,6 @@ for url_format in ['https://config.rcs.mnc{mnc}.mcc{mcc}.pub.3gppnetwork.org/', 
             pass
 
 print("Successful url", url)
-sys.exit(0)
 
 
 common_headers = {
