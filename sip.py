@@ -88,12 +88,13 @@ Call-ID: {callid}
 CSeq: 0 REGISTER
 Contact: <sip:{username}@192.168.42.42:4242;transport=tcp>;+sip.instance="<urn:uuid:6f474eac-f1a1-4085-b654-c9ed5c9cf1c3>";+g.3gpp.icsi-ref="urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session.group,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.msg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.largemsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.systemmsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.filetransfer";+g.3gpp.iari-ref="urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftthumb,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.fthttp,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftsms,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.chatbot.sa,urn%3Aurn-7%3A3gpp-application.ims.iari.rcse.im,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geopush,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geosm";+g.gsma.rcs.cpm.pager-large;+g.gsma.rcs.botversion="#=1,#=2";reg-id=0;expires=60000
 Allow: NOTIFY, OPTIONS, INVITE, UPDATE, CANCEL, BYE, ACK, MESSAGE
-Authorization: Digest username="{username}", realm="{realm}", uri="sip:{realm}", response="", algorithm=MD5
+Authorization: Digest username="{username}@{realm}", realm="{realm}", uri="sip:{realm}", response=""
 Supported: path,gruu
 Accept-Encoding: gzip
 From: <sip:{username}@{realm}>;tag={tag}
 To: <sip:{username}@{realm}>
 Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch}
+User-Agent: IM-client/OMA1.0 Samsung/Pixel_3-12 Samsung-RCS/6.0 3gpp-gba
 """
     print(msg)
     answer_401 = req(msg)
@@ -102,7 +103,7 @@ Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch}
     tmp = tmp[0]
     nonce = tmp.group(1)
     #digest = calculate_digest_auth(f"{username}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce, qop='auth',cnonce='coucou',nc='00000001')
-    digest = calculate_digest_auth(f"{username}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce)
+    digest = calculate_digest_auth(f"{username}@{realm}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce)
 
     msg = f"""
 REGISTER sip:{realm} SIP/2.0
@@ -116,6 +117,7 @@ Accept-Encoding: gzip
 From: <sip:{username}@{realm}>;tag={tag}
 To: <sip:{username}@{realm}>
 Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch}
+User-Agent: IM-client/OMA1.0 Samsung/Pixel_3-12 Samsung-RCS/6.0 3gpp-gba
 """
     print(msg)
     answer_register = req(msg)
