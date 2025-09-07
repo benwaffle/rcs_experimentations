@@ -19,8 +19,7 @@ del tree
 del root
 
 callid = uuid.uuid4()
-tag = f'{random.getrandbits(48):x}'
-branch = f'z9hG4bK-{random.getrandbits(48):x}'
+sessionid = f'{random.getrandbits(128):x}'
 
 def calculate_digest_auth(username, password, realm, method, uri, nonce, qop=None, nc=None, cnonce=None):
     def md5(s):
@@ -90,6 +89,10 @@ def req(msg):
     msg = "\r\n".join(msg.split("\n"))
     msg += '\r\n\r\n'
 
+    print("########## Sending ################\n-------------------------------")
+    print(msg)
+    print("---------------------------------")
+
     ssock = get_shared_ssock()
     with open('msg', 'w') as f:
         f.write(msg)
@@ -97,51 +100,65 @@ def req(msg):
     ssock.sendall(msg.encode('utf-8'))
 
     # Receive exactly one SIP message based on headers and Content-Length
-    print("\nReceived from server:\n------------------------------\n")
+    print("######### Receiving ##############\n------------------------------")
     resp = recv_sip_message(ssock)
     print(resp)
-    print("\n------------------------------\n")
+    print("------------------------------")
     return resp
 
 def main():
+    branch = f'z9hG4bK{random.getrandbits(48):x}'
+    tag = f'{random.getrandbits(48):x}'
     msg = f"""
 REGISTER sip:{realm} SIP/2.0
 Call-ID: {callid}
-CSeq: 0 REGISTER
-Contact: <sip:{username}@192.168.42.42:4242;transport=tcp>;+sip.instance="<urn:uuid:6f474eac-f1a1-4085-b654-c9ed5c9cf1c3>";+g.3gpp.icsi-ref="urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session.group,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.msg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.largemsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.systemmsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.filetransfer";+g.3gpp.iari-ref="urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftthumb,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.fthttp,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftsms,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.chatbot.sa,urn%3Aurn-7%3A3gpp-application.ims.iari.rcse.im,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geopush,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geosm";+g.gsma.rcs.cpm.pager-large;+g.gsma.rcs.botversion="#=1,#=2";reg-id=0;expires=60000
-Allow: NOTIFY, OPTIONS, INVITE, UPDATE, CANCEL, BYE, ACK, MESSAGE
-Authorization: Digest username="{username}@{realm}", realm="{realm}", uri="sip:{realm}", response=""
-Supported: path,gruu
-Accept-Encoding: gzip
+Session-ID: {sessionid}
+Expires: 600000
+CSeq: 3 REGISTER
+Contact: <sip:{username}@192.168.42.42:4242;transport=tls;user=phone>;+g.3gpp.iari-ref="urn%3Aurn-7%3A3gpp-application.ims.iari.rcse.im,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.fthttp,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geopush,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geosms";+g.3gpp.icsi-ref="urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session";+g.gsma.rcs.telephony="none";+sip.instance="<urn:uuid:B1FCAFE1-073E-4D6A-B0A6-929AB8E449DF>"
+Allow: ACK,BYE,CANCEL,INFO,INVITE,MESSAGE,NOTIFY,OPTIONS,PRACK,REFER,UPDATE
+Max-Forwards: 70
+Authorization: Digest username="{username}", realm="{realm}", uri="sip:{realm}", response=""
+Supported: 100rel,path,gruu,replaces
 From: <sip:{username}@{realm}>;tag={tag}
 To: <sip:{username}@{realm}>
-Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch}
-User-Agent: IM-client/OMA1.0 Samsung/Pixel_3-12 Samsung-RCS/6.0 3gpp-gba
+Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch};keep;rport
+P-Access-Network-Info: IEEE-802.11;i-wlan-node-id=ffffffffffff
+Content-Length: 0
+User-Agent: IM-client/OMA1.0
 """
-    print(msg)
+
+# User-Agent: iOS iPhone
+
     answer_401 = req(msg)
     tmp = [re.match(r'WWW-Authenticate.*nonce="([^"]*)".*', x) for x in answer_401.split('\n')]
     tmp = [x for x in tmp if x]
     tmp = tmp[0]
     nonce = tmp.group(1)
     #digest = calculate_digest_auth(f"{username}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce, qop='auth',cnonce='coucou',nc='00000001')
-    digest = calculate_digest_auth(f"{username}@{realm}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce)
+    #digest = calculate_digest_auth(f"{username}@{realm}", userpwd, realm, "REGISTER", f"sip:{realm}", nonce)
+    digest = calculate_digest_auth(username, userpwd, realm, "REGISTER", f"sip:{realm}", nonce)
 
+    branch = f'z9hG4bK{random.getrandbits(48):x}'
+    # tag = f'{random.getrandbits(48):x}'
     msg = f"""
 REGISTER sip:{realm} SIP/2.0
+Expires: 600000
 Call-ID: {callid}
-CSeq: 1 REGISTER
-Contact: <sip:{username}@192.168.42.42:4242;transport=tcp>;+sip.instance="<urn:uuid:6f474eac-f1a1-4085-b654-c9ed5c9cf1c3>";+g.3gpp.icsi-ref="urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session.group,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.msg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.largemsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.systemmsg,urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.filetransfer";+g.3gpp.iari-ref="urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftthumb,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.fthttp,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.ftsms,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.chatbot.sa,urn%3Aurn-7%3A3gpp-application.ims.iari.rcse.im,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geopush,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geosm";+g.gsma.rcs.cpm.pager-large;+g.gsma.rcs.botversion="#=1,#=2";reg-id=0;expires=60000
-Allow: NOTIFY, OPTIONS, INVITE, UPDATE, CANCEL, BYE, ACK, MESSAGE
+Session-ID: {sessionid}
+CSeq: 4 REGISTER
+Contact: <sip:{username}@192.168.42.42:4242;transport=tls;user=phone>;+g.3gpp.iari-ref="urn%3Aurn-7%3A3gpp-application.ims.iari.rcse.im,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.fthttp,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geopush,urn%3Aurn-7%3A3gpp-application.ims.iari.rcs.geosms";+g.3gpp.icsi-ref="urn%3Aurn-7%3A3gpp-service.ims.icsi.oma.cpm.session";+g.gsma.rcs.telephony="none";+sip.instance="<urn:uuid:B1FCAFE1-073E-4D6A-B0A6-929AB8E449DF>"
+Allow: ACK,BYE,CANCEL,INFO,INVITE,MESSAGE,NOTIFY,OPTIONS,PRACK,REFER,UPDATE
 Authorization: {digest}
-Supported: path,gruu
-Accept-Encoding: gzip
+Supported: 100rel,path,replaces,gruu
 From: <sip:{username}@{realm}>;tag={tag}
 To: <sip:{username}@{realm}>
-Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch}
-User-Agent: IM-client/OMA1.0 Samsung/Pixel_3-12 Samsung-RCS/6.0 3gpp-gba
+Via: SIP/2.0/TLS 192.168.42.42:4242;branch={branch};keep;rport
+User-Agent: IM-client/OMA1.0
+Max-Forwards: 70
+P-Access-Network-Info: IEEE-802.11;i-wlan-node-id=ffffffffffff
+Content-Length: 0
 """
-    print(msg)
     answer_register = req(msg)
 
 
