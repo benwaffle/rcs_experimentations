@@ -68,16 +68,32 @@ def req(msg):
 
             ssock.sendall(msg.encode('utf-8'))
 
-            # Receive and print all data from the server until it closes the connection
+            # Receive exactly one SIP message based on headers and Content-Length
             print("\nReceived from server:")
-            response = b""
-            while True:
-                data = ssock.recv(4096)
-                if not data:
-                    break
-                response += data
-            
-            resp = response.decode('utf-8', errors='ignore')
+
+            def recv_sip_message(sock):
+                buf = b""
+                headers_parsed = False
+                total_needed = None
+                while True:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        # Connection closed by peer
+                        break
+                    buf += chunk
+                    if not headers_parsed:
+                        hdr_end = buf.find(b"\r\n\r\n")
+                        if hdr_end != -1:
+                            headers_parsed = True
+                            headers = buf[:hdr_end].decode('utf-8', errors='ignore')
+                            m = re.search(r"\r\nContent-Length:\s*(\d+)", headers, re.IGNORECASE)
+                            cl = int(m.group(1)) if m else 0
+                            total_needed = hdr_end + 4 + cl
+                    if headers_parsed and total_needed is not None and len(buf) >= total_needed:
+                        break
+                return buf.decode('utf-8', errors='ignore')
+
+            resp = recv_sip_message(ssock)
             print(resp)
             return resp
 
