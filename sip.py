@@ -67,7 +67,8 @@ def recv_sip_message(sock):
     buf = b""
     headers_parsed = False
     total_needed = None
-    while True: chunk = sock.recv(4096)
+    while True:
+        chunk = sock.recv(4096)
         if not chunk:
             # Connection closed by peer
             break
