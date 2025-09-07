@@ -50,52 +50,57 @@ def create_ipv4_connection(address, timeout=None):
     print("connecting to", sockaddr)
     return socket.create_connection(sockaddr, timeout=timeout)
 
+# Global shared TLS socket
+SSOCK = None
+
+def get_shared_ssock():
+    global SSOCK
+    if SSOCK is None:
+        ssl_context = ssl.create_default_context()
+        base_sock = create_ipv4_connection((pcscf, 5061), timeout=30)
+        SSOCK = ssl_context.wrap_socket(base_sock, server_hostname=pcscf)
+        print(f"Successfully connected to {pcscf}:{5061} using TLS.")
+        print(f"Cipher used: {SSOCK.cipher()}")
+    return SSOCK
+
+def recv_sip_message(sock):
+    buf = b""
+    headers_parsed = False
+    total_needed = None
+    while True: chunk = sock.recv(4096)
+        if not chunk:
+            # Connection closed by peer
+            break
+        buf += chunk
+        if not headers_parsed:
+            hdr_end = buf.find(b"\r\n\r\n")
+            if hdr_end != -1:
+                headers_parsed = True
+                headers = buf[:hdr_end].decode('utf-8', errors='ignore')
+                m = re.search(r"\r\nContent-Length:\s*(\d+)", headers, re.IGNORECASE)
+                cl = int(m.group(1)) if m else 0
+                total_needed = hdr_end + 4 + cl
+        if headers_parsed and total_needed is not None and len(buf) >= total_needed:
+            break
+    return buf.decode('utf-8', errors='ignore')
+
 def req(msg):
     msg = msg.strip().rstrip()
     msg = "\r\n".join(msg.split("\n"))
     msg += '\r\n\r\n'
 
-    ssl_context = ssl.create_default_context()
-    #with socket.create_connection((pcscf, 5601), timeout=30) as sock:
-    # Workaround vpn
-    with create_ipv4_connection((pcscf, 5061), timeout=30) as sock:
-        # Wrap the socket with SSL/TLS, specifying the SNI
-        with ssl_context.wrap_socket(sock, server_hostname=pcscf) as ssock:
-            print(f"Successfully connected to {pcscf}:{5061} using TLS.")
-            print(f"Cipher used: {ssock.cipher()}")
-            with open('msg', 'w') as f:
-                f.write(msg)
+    ssock = get_shared_ssock()
+    with open('msg', 'w') as f:
+        f.write(msg)
 
-            ssock.sendall(msg.encode('utf-8'))
+    ssock.sendall(msg.encode('utf-8'))
 
-            # Receive exactly one SIP message based on headers and Content-Length
-            print("\nReceived from server:")
-
-            def recv_sip_message(sock):
-                buf = b""
-                headers_parsed = False
-                total_needed = None
-                while True:
-                    chunk = sock.recv(4096)
-                    if not chunk:
-                        # Connection closed by peer
-                        break
-                    buf += chunk
-                    if not headers_parsed:
-                        hdr_end = buf.find(b"\r\n\r\n")
-                        if hdr_end != -1:
-                            headers_parsed = True
-                            headers = buf[:hdr_end].decode('utf-8', errors='ignore')
-                            m = re.search(r"\r\nContent-Length:\s*(\d+)", headers, re.IGNORECASE)
-                            cl = int(m.group(1)) if m else 0
-                            total_needed = hdr_end + 4 + cl
-                    if headers_parsed and total_needed is not None and len(buf) >= total_needed:
-                        break
-                return buf.decode('utf-8', errors='ignore')
-
-            resp = recv_sip_message(ssock)
-            print(resp)
-            return resp
+    # Receive exactly one SIP message based on headers and Content-Length
+    print("\nReceived from server:\n------------------------------\n")
+    resp = recv_sip_message(ssock)
+    print(resp)
+    print("\n------------------------------\n")
+    return resp
 
 def main():
     msg = f"""
