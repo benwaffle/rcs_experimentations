@@ -1,7 +1,6 @@
 import socket
 import ssl
 import xml.etree.ElementTree as ET
-from my_secrets import imsi, imei, msisdn
 import uuid
 import random
 import hashlib
@@ -11,10 +10,19 @@ tree = ET.parse('wap-provisioningdoc.xml')
 root = tree.getroot()
 
 # --- XPath Query for Realm ---
+# google messages
 realm = root.find('.//characteristic[@type="APPAUTH"]/parm[@name="Realm"]').get('value')
 username = root.find('.//characteristic[@type="APPAUTH"]/parm[@name="UserName"]').get('value')
 userpwd = root.find('.//characteristic[@type="APPAUTH"]/parm[@name="UserPwd"]').get('value')
 pcscf = root.find('.//characteristic[@type="LBO_P-CSCF_Address"]/parm[@name="Address"]').get('value')
+
+# iOS
+# realm = root.find('.//characteristic[@type="GSMA"]/parm[@name="Realm"]').get('value')
+# username = root.find('.//characteristic[@type="GSMA"]/parm[@name="UserName"]').get('value')
+# userpwd = root.find('.//characteristic[@type="GSMA"]/parm[@name="UserPwd"]').get('value')
+# pcscf = root.find('.//characteristic[@type="LBO_P-CSCF_Address"]/characteristic/parm[@name="Address"]').get('value')
+# pcscf = pcscf.split(':')[0]
+
 del tree
 del root
 
@@ -56,8 +64,10 @@ def get_shared_ssock():
     global SSOCK
     if SSOCK is None:
         ssl_context = ssl.create_default_context()
+        #base_sock = create_ipv4_connection((pcscf, 5223), timeout=30)
         base_sock = create_ipv4_connection((pcscf, 5061), timeout=30)
         SSOCK = ssl_context.wrap_socket(base_sock, server_hostname=pcscf)
+        #print(f"Successfully connected to {pcscf}:{5223} using TLS.")
         print(f"Successfully connected to {pcscf}:{5061} using TLS.")
         print(f"Cipher used: {SSOCK.cipher()}")
     return SSOCK
